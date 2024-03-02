@@ -1,0 +1,80 @@
+% Define parameters for grain growth
+grid_size = 100;  % Set grid size to 100x100
+num_grains = 20;  % Number of grains
+num_steps = 20;  % Number of iterations
+nucleation_prob = 0.01;  % Nucleation probability (0-1)
+growth_prob = 0.9;        % Growth probability (0-1)
+
+% Create a two-dimensional grain grid
+grid = zeros(grid_size, grid_size);
+
+% Generate animation
+fig = figure;
+axis tight manual;  % Adjust axis range to ensure data is displayed in the center of the figure
+filename = 'grain_growth_animation.gif';
+
+for step = 1:num_steps
+    % Nucleation
+    for i = 1:grid_size
+        for j = 1:grid_size
+            if grid(i, j) == 0 && rand < nucleation_prob  % If a random number is less than the nucleation probability, nucleate
+                grid(i, j) = randi([1, num_grains]);
+            end
+        end
+    end
+    
+    % Grain growth
+    new_grid = grid;  % Create a new network
+    for i = 1:grid_size
+        for j = 1:grid_size
+            % Skip positions with existing grains
+            if grid(i, j) ~= 0
+                continue;
+            end
+            
+            % Get the grains of the eight nearest neighboring grid points
+            neighbors = zeros(1, 8);  % Initialize an array to store the grains of the eight nearest neighboring grid points
+            idx = 1;
+            for di = -1:1
+                for dj = -1:1
+                    if di == 0 && dj == 0
+                        continue;
+                    end
+                    if i+di >= 1 && i+di <= grid_size && j+dj >= 1 && j+dj <= grid_size
+                        neighbors(idx) = grid(i+di, j+dj);
+                        idx = idx + 1;
+                    end
+                end
+            end
+            
+            % Get the number of non-zero neighbors
+            non_zero_neighbors = neighbors(neighbors ~= 0);
+            
+            % If there are neighbors, set the current position to the value of a randomly selected neighbor, otherwise keep it as 0
+            if ~isempty(non_zero_neighbors)
+                if rand < growth_prob
+                    new_grid(i, j) = non_zero_neighbors(randi(length(non_zero_neighbors)));
+                end
+            end
+        end
+    end
+    grid = new_grid;
+    
+    % Visualize the current state
+    imagesc(grid); % Visualize nucleation and growth
+    colormap(gca, 'jet');  % Heatmap
+    colorbar;
+    title(['Step: ' num2str(step)]);
+    drawnow limitrate; % Control refresh rate
+    pause(0.5); % Add extra pause time
+
+    % Save the current frame as a gif
+    frame = getframe(gcf); % Get handle to the current figure window
+    im = frame2im(frame);
+    [imind, cm] = rgb2ind(im, 256);
+    if step == 1
+        imwrite(imind, cm, filename, 'gif', 'Loopcount', inf);
+    else
+        imwrite(imind, cm, filename, 'gif', 'WriteMode', 'append');
+    end
+end
