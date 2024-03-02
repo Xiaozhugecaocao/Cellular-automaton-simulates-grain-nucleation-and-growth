@@ -1,0 +1,72 @@
+% Define parameters for grain growth
+grid_size = 100;  % Set grid size to be 100x100
+num_grains = 200;  % Number of grains
+num_steps = 100;  % Number of iterations
+
+% Create a two-dimensional grain grid
+grid = zeros(grid_size, grid_size);
+
+% Randomly place some grain nuclei at the initial stage
+for i = 1:num_grains
+    x = randi(grid_size);
+    y = randi(grid_size);
+    grid(x, y) = randi([1, num_grains]);  % Randomly generate 200 seeds as nucleation points
+end
+
+% Generate animation
+fig = figure;
+axis tight manual;  % Adjust axis range to ensure data is displayed in the center of the figure
+filename = 'grain_growth_animation.gif';
+
+for step = 1:num_steps
+    % Visualize the current state
+    imagesc(grid); % Visualize nucleation and growth
+    colormap(gca, 'jet');  % Colormap for heatmap
+    colorbar;
+    title(['Step: ' num2str(step)]);
+    drawnow limitrate; % Control refresh rate
+    pause(0.5); % Add extra pause time
+
+    % Save the current frame as a gif
+    frame = getframe(gcf); % Get the handle of the current figure window
+    im = frame2im(frame);
+    [imind, cm] = rgb2ind(im, 256);
+    if step == 1
+        imwrite(imind, cm, filename, 'gif', 'Loopcount', inf);
+    else
+        imwrite(imind, cm, filename, 'gif', 'WriteMode', 'append');
+    end
+
+    % Grain growth
+    new_grid = zeros(grid_size, grid_size);  % Create a new grid
+    for i = 1:grid_size  % Check if the current position already has a grain
+        for j = 1:grid_size  
+            % Skip positions with existing grains
+            if grid(i, j) ~= 0  % If there is a grain at this position (not equal to 0), no nucleation is needed
+                new_grid(i, j) = grid(i, j);  % Copy the historical information of the old grid to the new grid
+                continue;
+            end
+
+            % Get the grains of the eight nearest neighboring grid points
+            neighbors = [];  % Initialize an empty array to store the grains of the eight nearest neighboring grid points
+            for di = -1:1   % Traverse the nine grid points around the current position (i,j)
+                for dj = -1:1 % Check if the index of the current neighboring grid point is within the legal range to ensure it does not go out of bounds
+                    if i+di >= 1 && i+di <= grid_size && j+dj >= 1 && j+dj <= grid_size
+                        neighbors(end+1) = grid(i+di, j+dj);
+                    end
+                end
+            end
+            
+            % Get the number of non-zero neighbors
+            non_zero_neighbors = neighbors(neighbors ~= 0);
+            
+            % If there are neighbors, set the current position to the value of the most frequent neighbor; otherwise, keep it as 0
+            if ~isempty(non_zero_neighbors)  % Check if there are non-empty neighbors
+                counts = histcounts(non_zero_neighbors, 1:num_grains+1); % Count the number of occurrences of each grain number in non-empty neighbors
+                [~, max_idx] = max(counts); % Find the grain number with the highest frequency of occurrence and return its index
+                new_grid(i, j) = max_idx;  % Set the grain number with the highest frequency of occurrence as the grain number of the current position (i, j), and update it to the new grid (the process of random growth if the value at position (i,j) is 0, if not 0, the value remains unchanged)
+            end
+        end
+    end
+    grid = new_grid;
+end
